@@ -19,9 +19,11 @@ public class MyInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Object o) throws Exception {
         LOGGER.info("Pre");
-        Cookie[] cookies = httpServletRequest.getCookies();
-        for(Cookie cookie : cookies){
-            System.out.println(cookie);
+        if( httpServletRequest.getCookies() != null ){
+            Cookie[] cookies = httpServletRequest.getCookies();
+            for(Cookie cookie : cookies){
+                System.out.println(cookie);
+            }
         }
 
         Cookie cookie = new Cookie("serverCookie","value");
