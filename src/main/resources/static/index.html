@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <script
+            src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous"></script>
+
+</head>
+<body>
+
+Test
+<button id="msg">Send message</button>
+
+<script>
+
+    getKeys();
+
+    $("#msg").click(function(){
+        console.log("Send message");
+        fetch("/api/123",{credentials:"same-origin"})
+            .then(function(res){
+                console.log(res)
+                return res.json();
+            })
+            .then(function(json){
+                console.log(json)
+            })
+    })
+
+    function getKeys(){
+        fetch("/api",{credentials:"same-origin"})
+            .then(function(res){
+                console.log(res);
+            })
+    }
+</script>
+
+</body>
+</html>
