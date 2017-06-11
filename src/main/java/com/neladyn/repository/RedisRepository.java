@@ -19,7 +19,7 @@ public class RedisRepository {
 
     public RedisRepository(){
         LOGGER.info("Initializing redis repository");
-        jedis = new Jedis("localhost");
+        jedis = new Jedis("37.191.230.67");
     }
 
 
