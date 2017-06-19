@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Facebook login</title>
 
     <script
             src="https://code.jquery.com/jquery-3.2.1.min.js"
@@ -12,32 +12,95 @@
 </head>
 <body>
 
-Test
-<button id="msg">Send message</button>
+
+<a id="login" href="">Login with facebook</a>
+<a id="logout" href="#">Logout</a>
+
+<hr/>
+<pre id="userinfo">
+
+</pre>
 
 <script>
 
-    getKeys();
+    var url = window.location.toString();
 
-    $("#msg").click(function(){
-        console.log("Send message");
-        fetch("/api/123",{credentials:"same-origin"})
-            .then(function(res){
-                console.log(res)
-                return res.json();
-            })
-            .then(function(json){
-                console.log(json)
-            })
-    })
+    var code = getParameterByName("code", url);
+    var state = getParameterByName("state", url);
 
-    function getKeys(){
-        fetch("/api",{credentials:"same-origin"})
-            .then(function(res){
-                console.log(res);
-            })
+    getLoginButtonUri();
+    function getLoginButtonUri() {
+        $.ajax({
+            url: "/facebook/getLoginUri",
+            success: function (res, status) {
+                $("#login").attr("href", res);
+            }
+        })
     }
-</script>
 
+    isAuthenticated();
+
+    function isAuthenticated() {
+        $.ajax({
+            url: "/facebook/auth",
+            success: function (res, status) {
+                console.log("Authenticated: ", res)
+                if (res === true) {
+                    $("#login").hide();
+                    $("#logout").show();
+                    showUserInfo()
+                }
+                else {
+                    $("#login").show();
+                    $("#logout").hide();
+                }
+            },
+            error: function (res, status) {
+                console.error(res, status)
+            }
+        });
+    }
+
+    function showUserInfo() {
+        $.ajax({
+            url: "/facebook/userinfo",
+            success: function (res, status) {
+                console.log(res);
+                $("#userinfo").html(JSON.stringify(res, null, 2));
+            }
+        })
+    }
+
+    $("#logout").click(function () {
+        $.ajax({
+            url: "/facebook/logout",
+            success: function (res, status) {
+                console.log(res)
+                window.location.replace("./")
+            }
+        })
+    });
+
+    if (code && state) {
+        $.ajax({
+            url: "/facebook/login?code=" + code + "&state=" + state,
+            success: function (res, status) {
+                console.log(status);
+                window.location.replace("./")
+            }
+        });
+    }
+
+    function getParameterByName(name, url) {
+        if (!url) url = window.location.href;
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+            results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+
+</script>
 </body>
 </html>
