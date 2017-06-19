@@ -31,7 +31,7 @@
     getLoginButtonUri();
     function getLoginButtonUri() {
         $.ajax({
-            url: "/facebook/getLoginUri",
+            url: "/api/getLoginUri",
             success: function (res, status) {
                 $("#login").attr("href", res);
             }
@@ -42,13 +42,12 @@
 
     function isAuthenticated() {
         $.ajax({
-            url: "/facebook/auth",
+            url: "/api/auth",
             success: function (res, status) {
                 console.log("Authenticated: ", res)
                 if (res === true) {
                     $("#login").hide();
                     $("#logout").show();
-                    showUserInfo()
                 }
                 else {
                     $("#login").show();
@@ -61,19 +60,9 @@
         });
     }
 
-    function showUserInfo() {
-        $.ajax({
-            url: "/facebook/userinfo",
-            success: function (res, status) {
-                console.log(res);
-                $("#userinfo").html(JSON.stringify(res, null, 2));
-            }
-        })
-    }
-
     $("#logout").click(function () {
         $.ajax({
-            url: "/facebook/logout",
+            url: "/api/logout",
             success: function (res, status) {
                 console.log(res)
                 window.location.replace("./")
@@ -83,7 +72,7 @@
 
     if (code && state) {
         $.ajax({
-            url: "/facebook/login?code=" + code + "&state=" + state,
+            url: "/api/login?code=" + code + "&state=" + state,
             success: function (res, status) {
                 console.log(status);
                 window.location.replace("./")

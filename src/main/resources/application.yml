@@ -5,6 +5,18 @@ server:
     key-store-password: mypass
     key-store-type: PKCS12
 
+redisURL: ${REDIS_URL:"redis://localhost:6379"}
 REDIRECT_URI: ${REDIRECT_URI}
 APP_ID: ${APP_ID}
 APP_SECRET: ${APP_SECRET}
+
+spring:
+  datasource:
+    maxActive: 8
+    driverClassName: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/mintest?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+    username: mintestClient
+    password: mintest2006
+  jpa:
+    hibernate:
+      ddl-auto: update

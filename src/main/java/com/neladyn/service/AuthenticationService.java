@@ -1,4 +1,4 @@
-package com.neladyn.controller;
+package com.neladyn.service;
 
 import com.neladyn.domain.AccessToken;
 import com.neladyn.domain.AccessTokenData;
@@ -10,10 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,28 +21,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@RestController
-public class FacebookController {
+@Service
+public class AuthenticationService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(FacebookController.class);
-
-    private RestTemplate restTemplate = new RestTemplate();
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationService.class);
 
     private final String REDIRECT_URI;
     private final String APP_ID;
     private final String APP_SECRET;
 
-    public FacebookController(
+    private RestTemplate restTemplate;
+    private String loginUrl;
+
+    public AuthenticationService(
             @Value("${REDIRECT_URI}") String REDIRECT_URI,
             @Value("${APP_ID}") String APP_ID,
             @Value("${APP_SECRET}") String APP_SECRET) {
         this.REDIRECT_URI = REDIRECT_URI;
         this.APP_ID = APP_ID;
         this.APP_SECRET = APP_SECRET;
+
+        restTemplate = new RestTemplate();
     }
 
-    @GetMapping("/facebook/login")
-    public ResponseEntity<?> facebookLogin(@RequestParam("code") String code, @RequestParam("state") String state, HttpServletResponse httpServletResponse) throws IOException {
+    public ResponseEntity<?> login(String code, String state, HttpServletResponse httpServletResponse) throws IOException {
         // Optional: Verify state (csrf) token
 
         AccessToken accessToken;
@@ -84,42 +83,15 @@ public class FacebookController {
         cookie.setSecure(true);
         cookie.setMaxAge((int) accessToken.getExpires_in());
         httpServletResponse.addCookie(cookie);
-        httpServletResponse.sendRedirect("https://localhost:8445/index.html");
+        httpServletResponse.sendRedirect(REDIRECT_URI);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/facebook/auth")
-    public boolean isAuthenticated(@CookieValue(value = "access_token", required = false) String access_token) {
-        if (access_token == null) return false;
-        return userIsAuthenticated(access_token);
-    }
-
-    @GetMapping("/facebook/logout")
-    public ResponseEntity logout(@CookieValue(value = "access_token") String access_token, HttpServletResponse httpServletResponse) {
-        Cookie cookie = new Cookie("access_token", "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setMaxAge(0);
-        httpServletResponse.addCookie(cookie);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/facebook/userinfo")
-    public UserDetails getUserDetails(@CookieValue("access_token") String access_token) {
-        return getUserDetailsFromAccessToken(access_token);
-    }
-
-    @GetMapping("/facebook/getLoginUri")
-    public String getLoginUri() {
-        String uri = "https://www.facebook.com/v2.9/dialog/oauth?client_id=" + APP_ID + "&redirect_uri=" + REDIRECT_URI + "&state=" + genCSRF();
-        return uri;
     }
 
     private String genCSRF() {
         return UUID.randomUUID().toString();
     }
 
-    private boolean userIsAuthenticated(String access_token) {
+    public boolean userIsAuthenticated(String access_token) {
         AccessTokenData accessTokenData;
         try {
             accessTokenData = inspectAccessToken(access_token, getAppAccessToken());
@@ -185,5 +157,9 @@ public class FacebookController {
             LOGGER.warn(exception.getResponseBodyAsString());
             throw new RuntimeException(String.valueOf(exception.getStatusCode()));
         }
+    }
+
+    public String getLoginUrl() {
+        return "https://www.facebook.com/v2.9/dialog/oauth?client_id=" + APP_ID + "&redirect_uri=" + REDIRECT_URI + "&state=" + genCSRF();
     }
 }
