@@ -31,15 +31,19 @@ public class AuthenticationService {
     private final String APP_SECRET;
 
     private RestTemplate restTemplate;
-    private String loginUrl;
+    private String cachedAppAccessToken;
+    private RedisService redisService;
 
     public AuthenticationService(
             @Value("${REDIRECT_URI}") String REDIRECT_URI,
             @Value("${APP_ID}") String APP_ID,
-            @Value("${APP_SECRET}") String APP_SECRET) {
+            @Value("${APP_SECRET}") String APP_SECRET,
+            RedisService redisService) {
         this.REDIRECT_URI = REDIRECT_URI;
         this.APP_ID = APP_ID;
         this.APP_SECRET = APP_SECRET;
+
+        this.redisService = redisService;
 
         restTemplate = new RestTemplate();
     }
@@ -58,7 +62,7 @@ public class AuthenticationService {
 
         String appAccessToken;
         try {
-            appAccessToken = getAppAccessToken();
+            appAccessToken = getCachedAppAccessToken();
         } catch (RuntimeException e) {
             return ResponseEntity.status(Integer.parseInt(e.getMessage())).build();
         }
@@ -84,6 +88,8 @@ public class AuthenticationService {
         cookie.setMaxAge((int) accessToken.getExpires_in());
         httpServletResponse.addCookie(cookie);
         httpServletResponse.sendRedirect(REDIRECT_URI);
+
+        redisService.setValue(accessToken.getAccess_token(),userDetails.getEmail(),(int)accessToken.getExpires_in());
         return ResponseEntity.ok().build();
     }
 
@@ -94,13 +100,18 @@ public class AuthenticationService {
     public boolean userIsAuthenticated(String access_token) {
         AccessTokenData accessTokenData;
         try {
-            accessTokenData = inspectAccessToken(access_token, getAppAccessToken());
+            accessTokenData = inspectAccessToken(access_token, getCachedAppAccessToken());
         } catch (RuntimeException e) {
             LOGGER.warn(e.getMessage());
             return false;
         }
 
         return !(!accessTokenData.isIs_valid() || accessTokenData.getApp_id() != Long.valueOf(APP_ID));
+    }
+
+    public boolean userIsAuthenticatedRedis(String access_token){
+        String userid = redisService.getValue(access_token);
+        return userid != null;
     }
 
     private AccessTokenData inspectAccessToken(String accessToken, String appAccessToken) {
@@ -144,6 +155,13 @@ public class AuthenticationService {
         }
     }
 
+    public String getCachedAppAccessToken(){
+        if( cachedAppAccessToken == null ){
+            cachedAppAccessToken = getAppAccessToken();
+        }
+        return cachedAppAccessToken;
+    }
+
     public String getAppAccessToken() {
         Map<String, String> urlparams = new HashMap<>();
         urlparams.put("client_id", APP_ID);
@@ -152,6 +170,7 @@ public class AuthenticationService {
 
         try {
             String json = restTemplate.getForObject("https://graph.facebook.com/oauth/access_token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials", String.class, urlparams);
+
             return new JSONObject(json).getString("access_token");
         } catch (HttpStatusCodeException exception) {
             LOGGER.warn(exception.getResponseBodyAsString());

@@ -20,8 +20,18 @@
 <pre id="userinfo">
 
 </pre>
+<button id="getTest">Get protected resource</button>
 
 <script>
+
+    $("#getTest").click(function () {
+        $.ajax({
+            url:"/api/test",
+            success:function (res, status) {
+                console.log(res,status)
+            }
+        })
+    })
 
     var url = window.location.toString();
 

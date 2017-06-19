@@ -2,6 +2,7 @@ package com.neladyn.interceptor;
 
 
 import com.neladyn.domain.PathMethod;
+import com.neladyn.exception.ForbiddenException;
 import com.neladyn.service.AuthenticationService;
 import com.neladyn.service.RedisService;
 import org.eclipse.jetty.http.HttpMethod;
@@ -39,7 +40,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     ));
 
     @Override
-    public boolean preHandle(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Object o) throws Exception {
+    public boolean preHandle(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Object o) throws ForbiddenException {
         String servletPath = httpServletRequest.getServletPath();
         String method = httpServletRequest.getMethod();
 
@@ -51,13 +52,13 @@ public class AuthInterceptor implements HandlerInterceptor {
             Cookie access_token = WebUtils.getCookie(httpServletRequest, "access_token");
             if (access_token == null || access_token.getValue() == null) {
                 LOGGER.warn("Forbidden access_token is null");
-                return false;
+                throw new ForbiddenException("Forbidden");
             }
 
             String access_token_string = access_token.getValue();
-            if (!authenticationService.userIsAuthenticated(access_token_string)) {
+            if (!authenticationService.userIsAuthenticatedRedis(access_token_string)) {
                 LOGGER.warn("Forbidden {} \t {}", pathMethod, access_token);
-                return false;
+                throw new ForbiddenException("Forbidden");
             }
         }
 

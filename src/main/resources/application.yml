@@ -5,7 +5,7 @@ server:
     key-store-password: mypass
     key-store-type: PKCS12
 
-redisURL: ${REDIS_URL:"redis://localhost:6379"}
+redisURL: redis://localhost:6379
 REDIRECT_URI: ${REDIRECT_URI}
 APP_ID: ${APP_ID}
 APP_SECRET: ${APP_SECRET}
