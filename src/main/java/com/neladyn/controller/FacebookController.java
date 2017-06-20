@@ -1,9 +1,13 @@
 package com.neladyn.controller;
 
-import com.neladyn.domain.AccessToken;
-import com.neladyn.domain.AccessTokenData;
-import com.neladyn.domain.Data;
-import com.neladyn.domain.UserDetails;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,12 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import com.neladyn.domain.AccessToken;
+import com.neladyn.domain.AccessTokenData;
+import com.neladyn.domain.Data;
+import com.neladyn.domain.UserDetails;
 
 @RestController
 public class FacebookController {
@@ -36,16 +38,17 @@ public class FacebookController {
     private final String APP_SECRET;
 
     public FacebookController(
-            @Value("${REDIRECT_URI}") String REDIRECT_URI,
-            @Value("${APP_ID}") String APP_ID,
-            @Value("${APP_SECRET}") String APP_SECRET) {
+        @Value("${REDIRECT_URI}") String REDIRECT_URI,
+        @Value("${APP_ID}") String APP_ID,
+        @Value("${APP_SECRET}") String APP_SECRET) {
         this.REDIRECT_URI = REDIRECT_URI;
         this.APP_ID = APP_ID;
         this.APP_SECRET = APP_SECRET;
     }
 
     @GetMapping("/facebook/login")
-    public ResponseEntity<?> facebookLogin(@RequestParam("code") String code, @RequestParam("state") String state, HttpServletResponse httpServletResponse) throws IOException {
+    public ResponseEntity<?> facebookLogin(@RequestParam("code") String code, @RequestParam("state") String state,
+        HttpServletResponse httpServletResponse) throws IOException {
         // Optional: Verify state (csrf) token
 
         AccessToken accessToken;
@@ -84,18 +87,21 @@ public class FacebookController {
         cookie.setSecure(true);
         cookie.setMaxAge((int) accessToken.getExpires_in());
         httpServletResponse.addCookie(cookie);
-        httpServletResponse.sendRedirect("https://localhost:8445/index.html");
+        httpServletResponse.sendRedirect(REDIRECT_URI);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/facebook/auth")
     public boolean isAuthenticated(@CookieValue(value = "access_token", required = false) String access_token) {
-        if (access_token == null) return false;
+        if (access_token == null) {
+            return false;
+        }
         return userIsAuthenticated(access_token);
     }
 
     @GetMapping("/facebook/logout")
-    public ResponseEntity logout(@CookieValue(value = "access_token") String access_token, HttpServletResponse httpServletResponse) {
+    public ResponseEntity logout(@CookieValue(value = "access_token") String access_token,
+        HttpServletResponse httpServletResponse) {
         Cookie cookie = new Cookie("access_token", "");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
@@ -111,7 +117,8 @@ public class FacebookController {
 
     @GetMapping("/facebook/getLoginUri")
     public String getLoginUri() {
-        String uri = "https://www.facebook.com/v2.9/dialog/oauth?client_id=" + APP_ID + "&redirect_uri=" + REDIRECT_URI + "&state=" + genCSRF();
+        String uri = "https://www.facebook.com/v2.9/dialog/oauth?client_id=" + APP_ID + "&redirect_uri=" + REDIRECT_URI
+            + "&state=" + genCSRF();
         return uri;
     }
 
@@ -136,7 +143,9 @@ public class FacebookController {
         urlparams.put("input_token", accessToken);
         urlparams.put("access_token", appAccessToken);
         try {
-            return restTemplate.getForObject("https://graph.facebook.com/debug_token?input_token={input_token}&access_token={access_token}", Data.class, urlparams).getData();
+            return restTemplate.getForObject(
+                "https://graph.facebook.com/debug_token?input_token={input_token}&access_token={access_token}",
+                Data.class, urlparams).getData();
         } catch (HttpStatusCodeException exception) {
             LOGGER.warn(exception.getResponseBodyAsString());
             throw new RuntimeException(String.valueOf(exception.getStatusCode()));
@@ -146,12 +155,15 @@ public class FacebookController {
     private AccessToken getAccessTokenFromCode(String code) {
         Map<String, String> urlparams = new HashMap<>();
         urlparams.put("client_id", APP_ID);
-        urlparams.put("redirect_uri", "https://localhost:8445/index.html/");
+        urlparams.put("redirect_uri", REDIRECT_URI);
         urlparams.put("client_secret", APP_SECRET);
         urlparams.put("code", code);
 
         try {
-            return restTemplate.getForObject("https://graph.facebook.com/oauth/access_token?client_id={client_id}&code={code}&client_secret={client_secret}&redirect_uri={redirect_uri}", AccessToken.class, urlparams);
+            return restTemplate.getForObject(
+                "https://graph.facebook.com/oauth/access_token?client_id={client_id}&code={code}&client_secret"
+                    + "={client_secret}&redirect_uri={redirect_uri}",
+                AccessToken.class, urlparams);
         } catch (HttpStatusCodeException exception) {
             LOGGER.warn(exception.getResponseBodyAsString());
             throw new RuntimeException(String.valueOf(exception.getStatusCode()));
@@ -165,7 +177,9 @@ public class FacebookController {
         urlparams.put("fields", "id,name,email");
         LOGGER.info("Retrieving user details with {} and {}", accessToken, urlparams);
         try {
-            return restTemplate.getForObject("https://graph.facebook.com/v2.9/me/?access_token={access_token}&fields={fields}", UserDetails.class, urlparams);
+            return restTemplate
+                .getForObject("https://graph.facebook.com/v2.9/me/?access_token={access_token}&fields={fields}",
+                    UserDetails.class, urlparams);
         } catch (HttpStatusCodeException exception) {
             LOGGER.warn(exception.getResponseBodyAsString());
             throw new RuntimeException(String.valueOf(exception.getStatusCode()));
@@ -179,7 +193,10 @@ public class FacebookController {
         LOGGER.info("Retrieving app access token");
 
         try {
-            String json = restTemplate.getForObject("https://graph.facebook.com/oauth/access_token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials", String.class, urlparams);
+            String json = restTemplate.getForObject(
+                "https://graph.facebook.com/oauth/access_token?client_id={client_id}&client_secret={client_secret"
+                    + "}&grant_type=client_credentials",
+                String.class, urlparams);
             return new JSONObject(json).getString("access_token");
         } catch (HttpStatusCodeException exception) {
             LOGGER.warn(exception.getResponseBodyAsString());
