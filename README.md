@@ -7,12 +7,12 @@ https://developers.facebook.com/docs/facebook-login/manually-build-a-login-flow
 
 using OAuth and not the Facebook javascript API (login button).
 
-There are 3 application config parameters necessary to run the app:
+There are 2 application config parameters necessary to run the app:
 
-* REDIRECT_URL: The url for the login page
 * APP_ID: Your fb app id
 * APP_SECRET: Your fb app secret
 
+Open [https://localhost:8445/index.html to login](https://localhost:8445/index.html) to login
 
 Stack: 
 * Spring Boot
