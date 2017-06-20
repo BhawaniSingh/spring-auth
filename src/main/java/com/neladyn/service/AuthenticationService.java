@@ -1,12 +1,10 @@
 package com.neladyn.service;
 
-import com.neladyn.domain.AccessToken;
-import com.neladyn.domain.AccessTokenData;
-import com.neladyn.domain.Data;
-import com.neladyn.domain.UserDetails;
+import com.neladyn.domain.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,18 +30,23 @@ public class AuthenticationService {
 
     private RestTemplate restTemplate;
     private String cachedAppAccessToken;
-    private RedisService redisService;
 
+    private RedisService redisService;
+    private UserService userService;
+
+    @Autowired
     public AuthenticationService(
             @Value("${REDIRECT_URI}") String REDIRECT_URI,
             @Value("${APP_ID}") String APP_ID,
             @Value("${APP_SECRET}") String APP_SECRET,
-            RedisService redisService) {
+            RedisService redisService,
+            UserService userService) {
         this.REDIRECT_URI = REDIRECT_URI;
         this.APP_ID = APP_ID;
         this.APP_SECRET = APP_SECRET;
 
         this.redisService = redisService;
+        this.userService = userService;
 
         restTemplate = new RestTemplate();
     }
@@ -89,7 +92,18 @@ public class AuthenticationService {
         httpServletResponse.addCookie(cookie);
         httpServletResponse.sendRedirect(REDIRECT_URI);
 
-        redisService.setValue(accessToken.getAccess_token(),userDetails.getEmail(),(int)accessToken.getExpires_in());
+        // Check if email is in UserDB. If not, create user.
+        User user = userService.getUser(userDetails.getEmail());
+        if (user == null) {
+            LOGGER.info("Creating user {}", user);
+            userService.createUser(userDetails);
+        } else if (!user.isEnabled()) {
+            // User exist in db but is not enabled
+            LOGGER.info("User is disabled {}", user);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        redisService.setValue(accessToken.getAccess_token(), userDetails.getEmail(), (int) accessToken.getExpires_in());
         return ResponseEntity.ok().build();
     }
 
@@ -109,12 +123,27 @@ public class AuthenticationService {
         return !(!accessTokenData.isIs_valid() || accessTokenData.getApp_id() != Long.valueOf(APP_ID));
     }
 
-    public boolean userIsAuthenticatedRedis(String access_token){
+    public boolean userIsAuthenticatedRedis(String access_token) {
+        LOGGER.info("Checking {}", access_token);
         String userid = redisService.getValue(access_token);
-        return userid != null;
+        if (userid == null) {
+            LOGGER.info("Either redis cached access token is not valid or access token is in fact not valid. Check with fb");
+            boolean isAuthenticated = userIsAuthenticated(access_token);
+            LOGGER.info("{}", isAuthenticated);
+
+            if (isAuthenticated) {
+                UserDetails userDetails = getUserDetailsFromAccessToken(access_token);
+                redisService.setValue(access_token, userDetails.getEmail(), 5000000);
+                LOGGER.info("Setting new access token for {} : {}", userDetails, access_token);
+                return true;
+            }
+            return false;
+
+        }
+        return true;
     }
 
-    private AccessTokenData inspectAccessToken(String accessToken, String appAccessToken) {
+    public AccessTokenData inspectAccessToken(String accessToken, String appAccessToken) {
         Map<String, String> urlparams = new HashMap<>();
         urlparams.put("input_token", accessToken);
         urlparams.put("access_token", appAccessToken);
@@ -126,7 +155,7 @@ public class AuthenticationService {
         }
     }
 
-    private AccessToken getAccessTokenFromCode(String code) {
+    public AccessToken getAccessTokenFromCode(String code) {
         Map<String, String> urlparams = new HashMap<>();
         urlparams.put("client_id", APP_ID);
         urlparams.put("redirect_uri", "https://localhost:8445/index.html/");
@@ -141,7 +170,7 @@ public class AuthenticationService {
         }
     }
 
-    private UserDetails getUserDetailsFromAccessToken(String accessToken) {
+    public UserDetails getUserDetailsFromAccessToken(String accessToken) {
 
         Map<String, String> urlparams = new HashMap<>();
         urlparams.put("access_token", accessToken);
@@ -155,8 +184,8 @@ public class AuthenticationService {
         }
     }
 
-    public String getCachedAppAccessToken(){
-        if( cachedAppAccessToken == null ){
+    public String getCachedAppAccessToken() {
+        if (cachedAppAccessToken == null) {
             cachedAppAccessToken = getAppAccessToken();
         }
         return cachedAppAccessToken;

@@ -7,23 +7,26 @@ import javax.persistence.Id;
 public class User {
 
     @Id
-    private long email;
+    private String email;
 
     private Role role;
+
+    boolean enabled;
 
     public User() {
     }
 
-    public User(long email, Role role) {
+    public User(String email, Role role, boolean enabled) {
         this.email = email;
         this.role = role;
+        this.enabled = enabled;
     }
 
-    public long getEmail() {
+    public String getEmail() {
         return email;
     }
 
-    public void setEmail(long email) {
+    public void setEmail(String email) {
         this.email = email;
     }
 
@@ -33,6 +36,23 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "email='" + email + '\'' +
+                ", role=" + role +
+                ", enabled=" + enabled +
+                '}';
     }
 }
 

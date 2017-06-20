@@ -21,14 +21,34 @@
 
 </pre>
 <button id="getTest">Get protected resource</button>
-
+<button id="unregister">Unregister</button>
+<button id="getAdminResource">Get admin resource</button>
 <script>
+
+    $("#getAdminResource").click(function () {
+        $.ajax({
+            url: "/api/admin/user",
+            success: function (res, status) {
+                console.log(res, status);
+            }
+        })
+    });
+
+    $("#unregister").click(function () {
+        $.ajax({
+            url: "/api/unregister",
+            method: "DELETE",
+            success: function (res, status) {
+                console.log(res, status);
+            }
+        })
+    });
 
     $("#getTest").click(function () {
         $.ajax({
-            url:"/api/test",
-            success:function (res, status) {
-                console.log(res,status)
+            url: "/api/test",
+            success: function (res, status) {
+                console.log(res, status)
             }
         })
     })

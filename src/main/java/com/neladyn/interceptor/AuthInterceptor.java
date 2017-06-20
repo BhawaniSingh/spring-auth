@@ -2,9 +2,13 @@ package com.neladyn.interceptor;
 
 
 import com.neladyn.domain.PathMethod;
+import com.neladyn.domain.Role;
+import com.neladyn.domain.User;
+import com.neladyn.domain.UserDetails;
 import com.neladyn.exception.ForbiddenException;
 import com.neladyn.service.AuthenticationService;
 import com.neladyn.service.RedisService;
+import com.neladyn.service.UserService;
 import org.eclipse.jetty.http.HttpMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +35,9 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Autowired
     private AuthenticationService authenticationService;
+
+    @Autowired
+    private UserService userService;
 
     Set<PathMethod> openPaths = new HashSet<PathMethod>(Arrays.asList(
             new PathMethod("/api/login", HttpMethod.GET),
@@ -60,6 +67,17 @@ public class AuthInterceptor implements HandlerInterceptor {
                 LOGGER.warn("Forbidden {} \t {}", pathMethod, access_token);
                 throw new ForbiddenException("Forbidden");
             }
+
+            // Check authorization: If access /api/admin , then role must be ADMIN
+            if (pathMethod.getPath().contains("/api/admin")) {
+                UserDetails userDetails = authenticationService.getUserDetailsFromAccessToken(access_token_string);
+                User user = userService.getUser(userDetails.getEmail());
+                LOGGER.info("Check authorization for {}", user);
+                if (user.getRole() != Role.ADMIN) {
+                    throw new ForbiddenException("Forbidden");
+                }
+            }
+
         }
 
 
